@@ -238,7 +238,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 		return 0;
 
 	case WM_CHAR:
-		if (wParam == '\x18')
+		if (wParam == VK_ESCAPE)
 			DestroyWindow(hwnd);
 		return 0;
 
