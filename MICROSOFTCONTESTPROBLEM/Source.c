@@ -9,13 +9,21 @@ the forth wondow must display circle of random radii. The program must terminate
 
 #include <Windows.h>
 #include <math.h>
+#include <process.h>
+
+typedef struct {
+	HWND hwnd;
+	int cxClient;
+	int cyClient;
+	int cyChar;
+	BOOL bKill;
+}PARAMS, *PPARAMS;
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
-int cyChar;
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrivInstance, PSTR szCmdLine, int iCmdShow) {
-	static TCHAR szAppName[] = TEXT("Multi1");
+	static TCHAR szAppName[] = TEXT("Multi2");
 	HWND hwnd;
 	MSG msg;
 	WNDCLASS wndclass;
@@ -61,7 +69,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrivInstance, PSTR szCmdLine,
 }
 
 //check bottom function
-int CheckBottom(HWND hwnd, int cyClient, int iLine) {
+int CheckBottom(HWND hwnd, int cyClient, int cyChar, int iLine) {
 	if (iLine * cyChar + cyChar > cyClient) {
 		InvalidateRect(hwnd, NULL, TRUE);
 		UpdateWindow(hwnd);
@@ -72,118 +80,191 @@ int CheckBottom(HWND hwnd, int cyClient, int iLine) {
 
 //window 1: Display increasing sequence of numbers
 
-LRESULT CALLBACK WndProc1(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
-	static int iNum, iLine, cyClient;
+void Thread1(PVOID pvoid) {
 	HDC hdc;
+	int iNum = 0, iLine = 0;
+	PPARAMS pParams;
 	TCHAR szBuffer[16];
 
-	switch (message) {
-	case WM_SIZE:
-		cyClient = HIWORD(lParam);
-		return 0;
+	pParams = (PPARAMS) pvoid;
 
-	case WM_TIMER:
+	while (!pParams->bKill) {
 		if (iNum < 0)
 			iNum = 0;
-		iLine = CheckBottom(hwnd, cyClient, iLine);
-		hdc = GetDC(hwnd);
+		iLine = CheckBottom(pParams->hwnd, pParams->cyClient,pParams->cyChar, iLine);
+		hdc = GetDC(pParams->hwnd);
 
-		TextOut(hdc, 0, iLine * cyChar, szBuffer, wsprintf(szBuffer, TEXT("%d"), iNum++));
-		ReleaseDC(hwnd, hdc);
+		TextOut(hdc, 0, iLine * pParams->cyChar, szBuffer, wsprintf(szBuffer, TEXT("%d"), iNum++));
+		ReleaseDC(pParams->hwnd, hdc);
 		iLine++;
+	}
+	_endthread();
+}
+
+LRESULT CALLBACK WndProc1(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
+	static PARAMS params;
+
+	switch (message) {
+	case WM_CREATE:
+		params.hwnd = hwnd;
+		params.cyChar = HIWORD(GetDialogBaseUnits());
+		_beginthread(Thread1, 0, &params);
 		return 0;
 
+	case WM_SIZE:
+		params.cyClient = HIWORD(lParam);
+		return 0;
+
+	case WM_DESTROY:
+		params.bKill = TRUE;
+		return 0;
 	}
 	return DefWindowProc(hwnd, message, wParam, lParam);
 }
 
 //window 2: incresing sequence of prime numbers
-LRESULT CALLBACK WndProc2(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
-	static int iNum = 1, iLine, cyClient;
+
+void Thread2(PVOID pvoid) {
 	HDC hdc;
-	int i, iSqrt;
+	int iNum = 1, iLine = 0, i, iSqrt;
+	PPARAMS pparams;
 	TCHAR szBuffer[16];
 
-	switch (message) {
-	case WM_SIZE:
-		cyClient = HIWORD(lParam);
-		return 0;
+	pparams = (PPARAMS) pvoid;
 
-
-	case WM_TIMER:
+	while (!pparams->bKill) {
 		do {
 			if (++iNum < 0)
 				iNum = 0;
-			iSqrt = (int) sqrt(iNum);
+			iSqrt = (int)sqrt(iNum);
 			for (i = 2; i <= iSqrt; i++) {
 				if (iNum % i == 0)
 					break;
 			}
 		} while (i <= iSqrt);
-		iLine = CheckBottom(hwnd, cyClient, iLine);
-		hdc = GetDC(hwnd);
-		TextOut(hdc, 0, iLine * cyChar, szBuffer, wsprintf(szBuffer, TEXT("%d"), iNum));
-		ReleaseDC(hwnd, hdc);
+		iLine = CheckBottom(pparams->hwnd, pparams->cyClient, pparams->cyChar, iLine);
+		hdc = GetDC(pparams->hwnd);
+		TextOut(hdc, 0, iLine * pparams->cyChar, szBuffer, wsprintf(szBuffer, TEXT("%d"), iNum));
+		ReleaseDC(pparams->hwnd, hdc);
 		iLine++;
+	}
+	_endthread();
+}
+
+LRESULT CALLBACK WndProc2(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
+	static PARAMS params;
+
+	switch (message) {
+	case WM_CREATE:
+		params.hwnd = hwnd;
+		params.cyChar = HIWORD(GetDialogBaseUnits());
+		_beginthread(Thread2, 0, &params);
+		return 0;
+
+	case WM_SIZE:
+		params.cyClient = HIWORD(lParam);
+		return 0;
+
+	case WM_DESTROY:
+		params.bKill = TRUE;
 		return 0;
 	}
 	return DefWindowProc(hwnd, message, wParam, lParam);
 }
 
 //window 3: display increasing sequence of fibonacci number
-LRESULT CALLBACK WndProc3(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
-	static int iNum = 1, iNext = 1, iLine, cyClient;
+
+void Thread3(PVOID pvoid) {
 	HDC hdc;
-	int iTemp;
+	int iNum1 = 0, iNum2 = 1, iNext, iLine = 0;
+	PPARAMS pparams;
 	TCHAR szBuffer[16];
 
-	switch (message) {
-	case WM_SIZE:
-		cyClient = HIWORD(lParam);
-		return 0;
+	pparams = (PPARAMS)pvoid;
 
-	case WM_TIMER:
-		if (iNum < 0) {
-			iNum = 0;
+	while (!pparams->bKill) {
+		iNext = iNum1 + iNum2;
+		if (iNext < 0) {
+			iNum1 = 0;
+			iNum2 = 1;
 			iNext = 1;
 		}
 
-		iLine = CheckBottom(hwnd, cyClient, iLine);
-		hdc = GetDC(hwnd);
-		TextOut(hdc, 0, iLine * cyChar, szBuffer, wsprintf(szBuffer, TEXT("%d"), iNum));
-		ReleaseDC(hwnd, hdc);
-		iTemp = iNum;
-		iNum = iNext;
-		iNext += iTemp;
+		iLine = CheckBottom(pparams->hwnd, pparams->cyClient, pparams->cyChar, iLine);
+		hdc = GetDC(pparams->hwnd);
+		TextOut(hdc, 0, iLine * pparams->cyChar, szBuffer, wsprintf(szBuffer, TEXT("%d"), iNum1));
+		ReleaseDC(pparams->hwnd, hdc);
+
+		iNum1 = iNum2;
+		iNum2 = iNext;
 		iLine++;
+	}
+	_endthread();
+}
+
+LRESULT CALLBACK WndProc3(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
+	static PARAMS params;
+
+	switch (message) {
+	case WM_CREATE:
+		params.hwnd = hwnd;
+		params.cyChar = HIWORD(GetDialogBaseUnits());
+		_beginthread(Thread3, 0, &params);
+		return 0;
+
+	case WM_SIZE:
+		params.cyClient = HIWORD(lParam);
+		return 0;
+
+	case WM_DESTROY:
+		params.bKill = TRUE;
 		return 0;
 	}
 	return DefWindowProc(hwnd, message, wParam, lParam);
 }
 
+
 //window 4: display circle of random radii
-LRESULT CALLBACK WndProc4(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
-	static int cxClient, cyClient;
+
+void Thread4(PVOID pvoid) {
 	HDC hdc;
 	int iDiameter;
+	PPARAMS pparams;
+
+	pparams = (PPARAMS)pvoid;
+
+	while (!pparams->bKill) {
+		InvalidateRect(pparams->hwnd, NULL, TRUE);
+		UpdateWindow(pparams->hwnd);
+		iDiameter = rand() % (max(1, min(pparams->cxClient, pparams->cyClient)));
+		hdc = GetDC(pparams->hwnd);
+		Ellipse(hdc, (pparams->cxClient - iDiameter) / 2,
+			(pparams->cyClient - iDiameter) / 2,
+			(pparams->cxClient + iDiameter) / 2,
+			(pparams->cyClient + iDiameter) / 2);
+
+		ReleaseDC(pparams->hwnd, hdc);
+	}
+	_endthread();
+}
+
+LRESULT CALLBACK WndProc4(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
+	static PARAMS params;
 
 	switch (message) {
-	case WM_SIZE:
-		cxClient = LOWORD(lParam);
-		cyClient = HIWORD(lParam);
+	case WM_CREATE:
+		params.hwnd = hwnd;
+		params.cyChar = HIWORD(GetDialogBaseUnits());
+		_beginthread(Thread4, 0, &params);
 		return 0;
 
-	case WM_TIMER:
-		InvalidateRect(hwnd, NULL, TRUE);
-		UpdateWindow(hwnd);
-		iDiameter = rand() % (max(1, min(cxClient, cyClient)));
-		hdc = GetDC(hwnd);
-		Ellipse(hdc, (cxClient - iDiameter) / 2, 
-			(cyClient - iDiameter) / 2, 
-			(cxClient + iDiameter) / 2, 
-			(cyClient + iDiameter) / 2);
+	case WM_SIZE:
+		params.cxClient = LOWORD(lParam);
+		params.cyClient = HIWORD(lParam);
+		return 0;
 
-		ReleaseDC(hwnd, hdc);
+	case WM_DESTROY:
+		params.bKill = TRUE;
 		return 0;
 	}
 	return DefWindowProc(hwnd, message, wParam, lParam);
@@ -218,8 +299,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
 			hwndChild[i] = CreateWindow(szChildClass[i], NULL, WS_CHILDWINDOW | WS_BORDER | WS_VISIBLE, 0, 0, 0, 0, hwnd, (HMENU)i, hInstance, NULL);
 		}
-		cyChar = HIWORD(GetDialogBaseUnits());
-		SetTimer(hwnd, 1, 1, NULL);
+		
 		return 0;
 
 	case WM_SIZE:
@@ -228,12 +308,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
 		for (i = 0; i < 4; i++) {
 			MoveWindow(hwndChild[i], (i % 2) * cxClient / 2, (i > 1) * cyClient / 2, cxClient / 2, cyClient / 2, TRUE);
-		}
-		return 0;
-
-	case WM_TIMER:
-		for (i = 0; i < 4; i++) {
-			SendMessage(hwndChild[i], WM_TIMER, wParam, lParam);
 		}
 		return 0;
 
