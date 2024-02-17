@@ -97,6 +97,7 @@ void Thread1(PVOID pvoid) {
 		TextOut(hdc, 0, iLine * pParams->cyChar, szBuffer, wsprintf(szBuffer, TEXT("%d"), iNum++));
 		ReleaseDC(pParams->hwnd, hdc);
 		iLine++;
+		Sleep(100);
 	}
 	_endthread();
 }
@@ -147,6 +148,7 @@ void Thread2(PVOID pvoid) {
 		TextOut(hdc, 0, iLine * pparams->cyChar, szBuffer, wsprintf(szBuffer, TEXT("%d"), iNum));
 		ReleaseDC(pparams->hwnd, hdc);
 		iLine++;
+		Sleep(100);
 	}
 	_endthread();
 }
@@ -198,6 +200,7 @@ void Thread3(PVOID pvoid) {
 		iNum1 = iNum2;
 		iNum2 = iNext;
 		iLine++;
+		Sleep(100);
 	}
 	_endthread();
 }
@@ -244,6 +247,7 @@ void Thread4(PVOID pvoid) {
 			(pparams->cyClient + iDiameter) / 2);
 
 		ReleaseDC(pparams->hwnd, hdc);
+		Sleep(100);
 	}
 	_endthread();
 }
